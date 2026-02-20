@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的个人音乐站</title>
+    <!-- 引入 Tailwind CSS 进行现代且美观的排版 -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 自定义进度条样式 */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            background: #4f46e5;
+            cursor: pointer;
+            margin-top: -4px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #e5e7eb;
+            border-radius: 2px;
+        }
+        /* 唱片旋转动画 */
+        .spin {
+            animation: spin 4s linear infinite;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .paused { animation-play-state: paused; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800 font-sans selection:bg-indigo-200">
+
+    <div class="max-w-md mx-auto pt-10 px-4 sm:px-0">
+        <!-- 头部标题 -->
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 tracking-tight">我的私人音乐库</h1>
+            <p class="text-gray-500 text-sm mt-2">部署在 GitHub Pages 上的静态音乐站</p>
+        </header>
+
+        <!-- 播放器主卡片 -->
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden mb-6 p-6">
+            <!-- 封面图（模拟黑胶唱片） -->
+            <div class="flex justify-center mb-6">
+                <div id="cover-art" class="w-48 h-48 rounded-full bg-indigo-100 flex items-center justify-center shadow-lg border-4 border-gray-100 spin paused transition-transform duration-500">
+                    <div class="w-12 h-12 rounded-full bg-white border border-gray-200 shadow-inner"></div>
+                </div>
+            </div>
+
+            <!-- 当前歌曲信息 -->
+            <div class="text-center mb-6">
+                <h2 id="song-title" class="text-xl font-bold text-gray-800 truncate">未选择歌曲</h2>
+                <p id="song-artist" class="text-gray-500 text-sm mt-1">未知艺术家</p>
+            </div>
+
+            <!-- 进度条 -->
+            <div class="mb-6">
+                <input type="range" id="progress-bar" value="0" min="0" max="100" class="w-full">
+                <div class="flex justify-between text-xs text-gray-400 mt-2 font-medium">
+                    <span id="current-time">0:00</span>
+                    <span id="duration">0:00</span>
+                </div>
+            </div>
+
+            <!-- 控制按钮 -->
+            <div class="flex justify-center items-center space-x-6">
+                <!-- 上一首 -->
+                <button id="prev-btn" class="text-gray-400 hover:text-indigo-600 transition-colors p-2">
+                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+                </button>
+                
+                <!-- 播放/暂停 -->
+                <button id="play-btn" class="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center hover:bg-indigo-700 hover:scale-105 transition-all shadow-md">
+                    <!-- 播放图标 (默认显示) -->
+                    <svg id="play-icon" class="w-8 h-8 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                    <!-- 暂停图标 (默认隐藏) -->
+                    <svg id="pause-icon" class="w-8 h-8 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+
+                <!-- 下一首 -->
+                <button id="next-btn" class="text-gray-400 hover:text-indigo-600 transition-colors p-2">
+                    <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 播放列表 -->
+        <div class="bg-white rounded-3xl shadow-md p-4 mb-10">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4 px-2">播放列表</h3>
+            <ul id="playlist" class="space-y-1">
+                <!-- 列表项将由 JS 动态生成 -->
+            </ul>
+        </div>
+    </div>
+
+    <!-- 隐藏的 Audio 元素 -->
+    <audio id="audio-player"></audio>
+
+    <script>
+        /**
+         * 🎧 在这里配置你的歌曲列表！
+         * 将你的 .mp3 文件放到与 index.html 相同的目录下。
+         * 然后在这里把文件名写进去即可。
+         * 示例: { title: "我的歌曲", artist: "我自己", file: "./my_song.mp3" }
+         */
+        const songs = [
+            {
+                title: "测试音乐 1 (动感)",
+                artist: "SoundHelix",
+                file: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" // 这里替换为你的相对路径，例如: "./song1.mp3"
+            },
+            {
+                title: "测试音乐 2 (轻松)",
+                artist: "SoundHelix",
+                file: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" // 这里替换为你的相对路径，例如: "./song2.mp3"
+            },
+            {
+                title: "测试音乐 3 (电子)",
+                artist: "SoundHelix",
+                file: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" // 这里替换为你的相对路径，例如: "./song3.mp3"
+            }
+        ];
+
+        // 获取 DOM 元素
+        const audio = document.getElementById('audio-player');
+        const playBtn = document.getElementById('play-btn');
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const songTitle = document.getElementById('song-title');
+        const songArtist = document.getElementById('song-artist');
+        const progressBar = document.getElementById('progress-bar');
+        const currentTimeEl = document.getElementById('current-time');
+        const durationEl = document.getElementById('duration');
+        const playlistEl = document.getElementById('playlist');
+        const coverArt = document.getElementById('cover-art');
+
+        let currentSongIndex = 0;
+        let isPlaying = false;
+
+        // 初始化
+        function initPlayer() {
+            renderPlaylist();
+            loadSong(currentSongIndex);
+        }
+
+        // 加载歌曲
+        function loadSong(index) {
+            const song = songs[index];
+            audio.src = song.file;
+            songTitle.textContent = song.title;
+            songArtist.textContent = song.artist;
+            
+            // 高亮播放列表中的当前歌曲
+            document.querySelectorAll('#playlist li').forEach((li, i) => {
+                if (i === index) {
+                    li.classList.add('bg-indigo-50', 'text-indigo-600', 'border-l-4', 'border-indigo-600');
+                    li.classList.remove('text-gray-700', 'border-transparent');
+                } else {
+                    li.classList.remove('bg-indigo-50', 'text-indigo-600', 'border-l-4', 'border-indigo-600');
+                    li.classList.add('text-gray-700', 'border-transparent');
+                }
+            });
+        }
+
+        // 播放歌曲
+        function playSong() {
+            isPlaying = true;
+            audio.play();
+            playIcon.classList.add('hidden');
+            pauseIcon.classList.remove('hidden');
+            coverArt.classList.remove('paused');
+        }
+
+        // 暂停歌曲
+        function pauseSong() {
+            isPlaying = false;
+            audio.pause();
+            playIcon.classList.remove('hidden');
+            pauseIcon.classList.add('hidden');
+            coverArt.classList.add('paused');
+        }
+
+        // 切换播放状态
+        playBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                pauseSong();
+            } else {
+                playSong();
+            }
+        });
+
+        // 上一首
+        prevBtn.addEventListener('click', () => {
+            currentSongIndex = (currentSongIndex - 1 + songs.length) % songs.length;
+            loadSong(currentSongIndex);
+            if (isPlaying) playSong();
+        });
+
+        // 下一首
+        nextBtn.addEventListener('click', () => {
+            currentSongIndex = (currentSongIndex + 1) % songs.length;
+            loadSong(currentSongIndex);
+            if (isPlaying) playSong();
+        });
+
+        // 格式化时间 (秒 -> 分:秒)
+        function formatTime(seconds) {
+            if (isNaN(seconds)) return "0:00";
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        // 更新进度条
+        audio.addEventListener('timeupdate', () => {
+            const current = audio.currentTime;
+            const duration = audio.duration;
+            
+            if (duration) {
+                const progressPercent = (current / duration) * 100;
+                progressBar.value = progressPercent;
+                currentTimeEl.textContent = formatTime(current);
+                durationEl.textContent = formatTime(duration);
+            }
+        });
+
+        // 获取音频总时长 (当元数据加载完成时)
+        audio.addEventListener('loadedmetadata', () => {
+            durationEl.textContent = formatTime(audio.duration);
+        });
+
+        // 拖动进度条跳转
+        progressBar.addEventListener('input', (e) => {
+            const duration = audio.duration;
+            const progressPercent = e.target.value;
+            audio.currentTime = (progressPercent / 100) * duration;
+        });
+
+        // 歌曲播放结束自动下一首
+        audio.addEventListener('ended', () => {
+            currentSongIndex = (currentSongIndex + 1) % songs.length;
+            loadSong(currentSongIndex);
+            playSong();
+        });
+
+        // 渲染播放列表
+        function renderPlaylist() {
+            playlistEl.innerHTML = '';
+            songs.forEach((song, index) => {
+                const li = document.createElement('li');
+                li.className = 'flex items-center justify-between p-3 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors border-l-4 border-transparent text-gray-700';
+                li.innerHTML = `
+                    <div class="flex flex-col truncate">
+                        <span class="font-medium text-sm truncate">${song.title}</span>
+                        <span class="text-xs text-gray-400 mt-0.5">${song.artist}</span>
+                    </div>
+                    <svg class="w-5 h-5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                `;
+                
+                // 点击列表项播放该歌曲
+                li.addEventListener('click', () => {
+                    currentSongIndex = index;
+                    loadSong(currentSongIndex);
+                    playSong();
+                });
+                
+                playlistEl.appendChild(li);
+            });
+        }
+
+        // 启动播放器
+        initPlayer();
+
+    </script>
+</body>
+</html>s
